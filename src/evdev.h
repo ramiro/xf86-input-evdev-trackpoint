@@ -152,6 +152,8 @@ typedef struct {
 } EventQueueRec, *EventQueuePtr;
 
 typedef struct {
+    int isSynaptics;
+
     struct libevdev *dev;
 
     char *device;

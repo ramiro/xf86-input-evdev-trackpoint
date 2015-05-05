@@ -33,6 +33,8 @@
 
 #include <xorg-server.h>
 
+#define BUILD_EVENTCOMM 1
+
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <xf86Xinput.h>
@@ -76,6 +78,8 @@ struct SynapticsHwState {
 
     Bool multi[8];
     Bool middle;                /* Some ALPS touchpads have a middle button */
+
+    Bool trackpoint_middle;
 
     int num_mt_mask;
     ValuatorMask **mt_mask;

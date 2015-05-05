@@ -109,6 +109,9 @@ static int proximity_bits[] = {
         BTN_TOOL_LENS,
 };
 
+int SynapticsPreInit(InputDriverPtr drv, InputInfoPtr pInfo, int flags);
+void SynapticsUnInit(InputDriverPtr drv, InputInfoPtr pInfo, int flags);
+
 static int EvdevOn(DeviceIntPtr);
 static int EvdevCache(InputInfoPtr pInfo);
 static void EvdevKbdCtrl(DeviceIntPtr device, KeybdCtrl *ctrl);
@@ -134,6 +137,8 @@ static Atom prop_btn_label;
 static Atom prop_device;
 static Atom prop_virtual;
 static Atom prop_scroll_dist;
+
+InputInfoPtr trackpoint = NULL;
 
 static int EvdevSwitchMode(ClientPtr client, DeviceIntPtr device, int mode)
 {
@@ -974,7 +979,7 @@ static void EvdevPostQueuedEvents(InputInfoPtr pInfo)
  * Take the synchronization input event and process it accordingly; the motion
  * notify events are sent first, then any button/key press/release events.
  */
-static void
+void
 EvdevProcessSyncEvent(InputInfoPtr pInfo, struct input_event *ev)
 {
     int i;
@@ -2556,6 +2561,11 @@ static void
 EvdevUnInit(InputDriverPtr drv, InputInfoPtr pInfo, int flags)
 {
     EvdevPtr pEvdev = pInfo ? pInfo->private : NULL;
+
+    /* Synaptics */
+    if (pEvdev->isSynaptics)
+        return SynapticsUnInit(drv, pInfo, flags);
+
     if (pEvdev)
     {
         /* Release string allocated in EvdevOpenDevice. */
@@ -2567,6 +2577,12 @@ EvdevUnInit(InputDriverPtr drv, InputInfoPtr pInfo, int flags)
 
         libevdev_free(pEvdev->dev);
     }
+
+    /* TrackPoint */
+    if (strstr(pInfo->name, "TrackPoint")) {
+        trackpoint = NULL;
+    }
+
     xf86DeleteInput(pInfo, flags);
 }
 
@@ -2606,6 +2622,9 @@ EvdevAlloc(InputInfoPtr pInfo)
 
     pEvdev->type_name = NULL;
 
+    /* Synaptics */
+    pEvdev->isSynaptics = 0;
+
     return pEvdev;
 }
 
@@ -2623,6 +2642,11 @@ EvdevPreInit(InputDriverPtr drv, InputInfoPtr pInfo, int flags)
     pInfo->device_control = EvdevProc;
     pInfo->read_input = EvdevReadInput;
     pInfo->switch_mode = EvdevSwitchMode;
+
+    /* TrackPoint */
+    if (strstr(pInfo->name, "TrackPoint")) {
+        trackpoint = pInfo;
+    }
 
     rc = EvdevOpenDevice(pInfo);
     if (rc != Success)
@@ -2649,6 +2673,13 @@ EvdevPreInit(InputDriverPtr drv, InputInfoPtr pInfo, int flags)
     if (EvdevCache(pInfo) || EvdevProbe(pInfo)) {
         rc = BadMatch;
         goto error;
+    }
+
+    /* Synaptics */
+    if (pEvdev->flags & EVDEV_TOUCHPAD) {
+        free(pInfo->private);
+        pInfo->private = NULL;
+        return SynapticsPreInit(drv, pInfo, flags);
     }
 
     /* Overwrite type_name with custom-defined one (#62831).
