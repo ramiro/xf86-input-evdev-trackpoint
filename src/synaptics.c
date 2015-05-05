@@ -2760,8 +2760,10 @@ handle_clickfinger(SynapticsPrivate * priv, struct SynapticsHwState *hw)
      * three fingers down: F3_CLICK
      */
 
+    /*
     if (para->clickpad)
         nfingers = clickpad_guess_clickfingers(priv, hw);
+    */
 
     switch (nfingers) {
     case 1:
